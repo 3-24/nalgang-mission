@@ -1,0 +1,24 @@
+{
+  "name": "nalgang-mission",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "run": "npx tsc; node ./build/app.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/3-24/nalgang-mission.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/3-24/nalgang-mission/issues"
+  },
+  "homepage": "https://github.com/3-24/nalgang-mission#readme",
+  "dependencies": {},
+  "devDependencies": {
+    "ts-node": "^10.0.0",
+    "typescript": "^4.3.4"
+  }
+}
