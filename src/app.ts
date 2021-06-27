@@ -33,6 +33,43 @@ client.on('message', async (message: Message) => {
         // TODO: insert title, desc into Game table
         message.channel.send(`Successfully create new game with title "${title}", description "${desc}"`)
     }
+    else if (command == "open"){
+        // TODO: If the number of owned Games is <= 1, no interaction.
+        message.reply("enter the title:")
+        // TODO: get collector
+        // TODO: update the game status in database
+    }
+    else if (command == "close"){
+        // TODO: If number of owned Game is <= 1, no interaction
+        message.reply("enter the title:")
+    }
+    else if (command == "bet"){
+        message.reply("enter the title of game to bet:");
+        // TODO: get title response by text
+        message.reply("success or fail?");
+        // TODO: get emoji response
+        message.reply("bet amount:");
+        // TODO: get title response by text
+    }
+    else if (command == "end"){
+        message.reply("enter the title of game to end:");
+        // TODO: get title and match it with database
+        message.reply("success or fail?");
+        // TODO: get result by emoji
+        // TODO: query the profits by winners
+        message.reply("Ending process is done. I hope you are satisfied on the result :)");
+    }
+    else if (command == "status"){
+        // TODO: specify which game?
+        // TODO: show status of game(title, desc, yes/no amount)
+    }
+    else if (command == "mybets"){
+        // TODO: show your bets
+    }
+    else if (command == "gamelist"){
+        // TODO: get status: open(default), closed, idle
+        // TODO: show game list
+    }
     else if (command == "shutdown"){
         if (message.author.id == owner_id){
             message.channel.send("Shutting down...").then(m=>{
