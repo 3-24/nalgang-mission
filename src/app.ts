@@ -2,6 +2,8 @@ import { Client, Message, CollectorFilter } from "discord.js";
 import {bot_token, owner_id} from "../config.json";
 let client = new Client();
 
+const timeoutAnswer:string = "Bye-bye, little challenger!";         // TODO: more reactions!
+
 client.once('ready', () => {
     if (client.user == null){
         console.log("FATAL");
@@ -24,14 +26,18 @@ client.on('message', async (message: Message) => {
             return msg.author.id == message.author.id && msg.guild == message.guild;
         };
         message.reply("please enter the title:");
-        let collector1 = await message.channel.awaitMessages(filter, {max: 1, time: 30000, errors: ['time']});
-        let title = collector1.first()?.content;
+        const titleCollector = await message.channel.awaitMessages(filter, {max: 1, time: 30000, errors: ['time']})
+        .catch (function(_){message.channel.send(timeoutAnswer);});
+        if (titleCollector === undefined) return;
+        let title = titleCollector.first()?.content;
         message.reply("please enter the description:");
-        let collector2 = await message.channel.awaitMessages(filter, {max: 1, time: 30000, errors: ['time']});
-        let desc = collector2.first()?.content;
+        const descCollector = await message.channel.awaitMessages(filter, {max: 1, time: 30000, errors: ['time']})
+        .catch (function(_){message.channel.send(timeoutAnswer);});
+        if (descCollector === undefined) return;
+        let desc = descCollector.first()?.content;
         // TODO: handle timeout event
         // TODO: insert title, desc into Game table
-        message.channel.send(`Successfully create new game with title "${title}", description "${desc}"`)
+        message.channel.send(`Successfully created new game with title "${title}", description "${desc}"`);
     }
     else if (command == "open"){
         // TODO: If the number of owned Games is <= 1, no interaction.
