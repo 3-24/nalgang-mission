@@ -3,6 +3,18 @@ import {bot_token, owner_id} from "../config.json";
 let client = new Client();
 
 const timeoutAnswer:string = "Bye-bye, little challenger!";         // TODO: more reactions!
+const timeout = 30000;      // 30s
+
+async function getOneInput(message: Message){
+    const filter:CollectorFilter = function (msg: Message) {
+        return msg.author.id == message.author.id && msg.guild == message.guild;
+    };
+
+    const collector = await message.channel.awaitMessages(filter, {max: 1, time: timeout, errors: ['time']})
+    .catch (function(_){message.channel.send(timeoutAnswer);});
+
+    return collector?.first()?.content;
+}
 
 client.once('ready', () => {
     if (client.user == null){
@@ -22,19 +34,10 @@ client.on('message', async (message: Message) => {
         // TODO: Send help embed message
     }
     else if (command == "new"){
-        const filter:CollectorFilter = function (msg: Message) {
-            return msg.author.id == message.author.id && msg.guild == message.guild;
-        };
         message.reply("please enter the title:");
-        const titleCollector = await message.channel.awaitMessages(filter, {max: 1, time: 30000, errors: ['time']})
-        .catch (function(_){message.channel.send(timeoutAnswer);});
-        if (titleCollector === undefined) return;
-        let title = titleCollector.first()?.content;
+        let title = getOneInput(message);
         message.reply("please enter the description:");
-        const descCollector = await message.channel.awaitMessages(filter, {max: 1, time: 30000, errors: ['time']})
-        .catch (function(_){message.channel.send(timeoutAnswer);});
-        if (descCollector === undefined) return;
-        let desc = descCollector.first()?.content;
+        let desc = getOneInput(message);
         // TODO: handle timeout event
         // TODO: insert title, desc into Game table
         message.channel.send(`Successfully created new game with title "${title}", description "${desc}"`);
@@ -63,7 +66,7 @@ client.on('message', async (message: Message) => {
         message.reply("success or fail?");
         // TODO: get result by emoji
         // TODO: query the profits by winners
-        message.reply("Ending process is done. I hope you are satisfied on the result :)");
+        message.reply("Ending process is done. I hope you are satisfied with the result :)");
     }
     else if (command == "status"){
         // TODO: specify which game?
