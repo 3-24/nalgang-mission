@@ -36,8 +36,10 @@ client.on('message', async (message: Message) => {
     else if (command == "new"){
         message.reply("please enter the title:");
         let title = await getOneInput(message);
+        if (title === undefined) return;
         message.reply("please enter the description:");
         let desc = await getOneInput(message);
+        if (desc === undefined) return;
         // TODO: handle timeout event
         // TODO: insert title, desc into Game table
         message.channel.send(`Successfully created new game with title "${title}", description "${desc}"`);
