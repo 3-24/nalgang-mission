@@ -25,13 +25,23 @@ async function addGame(title:string, desc:string, user_id:string, guild_id:strin
         [title, desc, user_id, guild_id, status]);
 }
 
+async function db_get(query:string){
+    return new Promise(function(resolve,reject){
+        db.get(query, function(err:any,rows:any){
+           if(err){return reject(err);}
+           resolve(rows["success"]);
+         });
+    });
+}
+
+
 async function isFenceSitter(user_id:string, game_id:number, success:boolean){
     const int_success = success ? 1 : 0;
-    return db.get('SELECT success FROM Bet WHERE user_id = ? AND game_id = ?',[user_id,game_id], function(err:any, res:any){
-        console.log(res);
-        if(res["success"] == int_success) return true;
-        else return false
-    });
+    const query = 'SELECT success FROM Bet WHERE user_id = '+user_id+' AND game_id ='+game_id;
+    const get_db = await db_get(query);
+    console.log(get_db);
+    if(get_db === int_success){console.log("!");return true;}
+    else return false
 }
 async function addBet(title:string, user_id:string, success:boolean, point:number){
     const int_success = success ? 1 : 0;
