@@ -46,7 +46,7 @@ class DatabaseCursor{
         })
     }
 
-    addBetQuery(game_id: number, user_id: string, success:boolean, bet_point: number){
+    addBet(game_id: number, user_id: string, success:boolean, bet_point: number){
         return new Promise((resolve, reject) => {
             this.db.run('INSERT INTO Bet(game_id, user_id, success, bet_point) VALUES (?,?,?,?);',
             [game_id, user_id, success, bet_point],
@@ -55,10 +55,6 @@ class DatabaseCursor{
                 else reject(err);
             })
         });
-    }
-
-    addBet(){
-        // TODO: title input. Use addBetQuery.
     }
 
     isFenceSitter(user_id: String, game_id: number, success: boolean){
