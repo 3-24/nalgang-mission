@@ -1,4 +1,6 @@
+import { rejects } from "assert/strict";
 import {Database} from "sqlite3";
+import { threadId } from "worker_threads";
 
 const DEBUG = true;
 let db_path = DEBUG ? ":memory:" : "./data/database.db";
@@ -61,7 +63,7 @@ class DatabaseCursor{
         });
     }
 
-    isFenceSitter(user_id: String, game_id: number, success: boolean){
+    isFenceSitter(user_id: string, game_id: number, success: boolean){
         const int_success:number = success ? 1 : 0;
         return new Promise((resolve, reject) => {
             this.db.get('SELECT success FROM Bet WHERE user_id = ? AND game_id = ?', [user_id,game_id],
@@ -73,9 +75,10 @@ class DatabaseCursor{
     }
 
 
-    getBetListByTitle(channel_id: String, text:String){
+    getGameListByTitle(channel_id: string, status: number, text:string){
         return new Promise((resolve, reject) => {
-            this.db.all(`SELECT game_id, title, description FROM Game WHERE channel_id = ? AND status = 0 AND title LIKE ?`, [channel_id, text+'%'],
+            this.db.all(`SELECT game_id, title, description FROM Game WHERE channel_id = ? AND status = ? AND title LIKE ?`, 
+            [channel_id, status, text+'%'],
             (err:Error | null, rows: any) => {
                 if (err !== null) reject(err);
                 else resolve(rows);
@@ -83,21 +86,90 @@ class DatabaseCursor{
         })
     }
 
-    getOpenBetList(channel_id: String){
-        return this.getBetListByTitle(channel_id, "");
+    getGameList(channel_id: string, status: number){
+        return this.getGameListByTitle(channel_id, status, "");
+    }
+
+    changeGameStatus(game_id:number, status: number){
+        return new Promise((resolve, reject) => {
+            this.db.run('UPDATE Game SET status = ? WHERE game_id = ?',[status, game_id],
+            (err:Error | null) =>{
+                if (err !== null) reject(err);
+                else resolve(null);
+            });
+        })
+    }
+
+    getGameBetPointSum(game_id:number){
+        return new Promise((resolve, reject) => {
+            this.db.all(`SELECT success, SUM(bet_point) AS sum FROM Bet WHERE game_id = ? GROUP BY success`, game_id,
+            (err:Error | null, rows)=>{
+                if (err !== null) reject(err);
+                else {
+                    let sum_success = 0;
+                    let sum_fail = 0;
+                    rows.forEach((value) => {
+                        if (value["success"]) sum_success += value["sum"];
+                        else sum_fail += value["sum"];
+                    })
+                    resolve([sum_success,sum_fail]);
+                }
+            });
+        });
+    }
+
+    getUserBet(user_id:string, game_id:number){
+        return new Promise((resolve, reject) => {
+            this.db.get(`SELECT success, SUM(bet_point) AS bet_point FROM Bet WHERE user_id = ? AND game_id = ?`,[user_id, game_id], 
+            (err:Error | null, rows: any) => {
+                if (err !== null) reject(err);
+                else resolve(rows);
+            });
+        })
+    }
+
+    getBetWinnerList(game_id:number, success:boolean){
+        const int_success:number = success ? 1 : 0;
+        return new Promise((resolve, reject) => {
+            this.db.all(`SELECT user_id, SUM(bet_point) AS bet_point FROM Bet WHERE game_id = ? AND success = ? GROUP BY user_id`, 
+            [game_id, success],
+            (err:Error | null, rows: any) => {
+                if (err !== null) reject(err);
+                else resolve(rows);
+            });
+        })
     }
 }
 
 (async () => {
     let c:DatabaseCursor = new DatabaseCursor();
     await c.initTable()
+    /*
     let x = await c.addGame("abc","","","",0);
     let x2 = await c.addGame("abd","","","",0);
     let x3 = await c.addGame("bcd","","","",0);
     let x4 = await c.addGame("abe","","","",1);
     //await c.addBet(1, "1", false, 1);
     //let y = await c.isFenceSitter('1',1,true);
-    let z = await c.getOpenBetList("");
+    
+    let w = await c.changeGameStatus(1, 1);
+    await c.changeGameStatus(4,0);
+    let z = await c.getOpenGameList("");
+
     console.log(z);
+    */
+   await c.addBet(1,"a",true, 1);
+   await c.addBet(1,"b",false, 1);
+   await c.addBet(1,"b",false, 3);
+   await c.addBet(1,"c",true, 2);
+   await c.addBet(1,"d",false, 1);
+   await c.addBet(1,"e",false, 3);
+   await c.addBet(1,"b",false, 1);
+   await c.addBet(1,"e",false, 3);
+
+
+   let v = await c.getGameBetPointSum(1);
+   let u = await c.getBetWinnerList(1,false);
+   console.log(u);
 
 })();
