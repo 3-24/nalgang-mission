@@ -1,9 +1,13 @@
 import {Database} from "sqlite3";
 
+const DEBUG = true;
+let db_path = DEBUG ? ":memory:" : "./data/database.db";
+
+
 class DatabaseCursor{
     db
     constructor(){
-        this.db = new Database("./data/database.db", function (err: Error|null){
+        this.db = new Database(db_path, function (err: Error|null){
             if (err) console.error(err.message);
             else console.log("Connected to database.");
         });
@@ -16,7 +20,7 @@ class DatabaseCursor{
                 title TEXT NOT NULL,
                 description TEXT NOT NULL,
                 user_id TEXT NOT NULL,
-                guild_id TEXT NOT NULL,
+                channel_id TEXT NOT NULL,
                 status INTEGER NOT NULL
                 );`, (err: Error|null) => {
                     if (err === null){
@@ -35,10 +39,10 @@ class DatabaseCursor{
                 });
         })}
     
-    addGame(title:string, desc:string, user_id:string, guild_id:string, status:number){
+    addGame(title:string, desc:string, user_id:string, channel_id:string, status:number){
         return new Promise((resolve, reject) => {
-            this.db.run('INSERT INTO Game(title,description,user_id,guild_id,status) VALUES (?,?,?,?,?);',
-            [title, desc, user_id, guild_id, status],
+            this.db.run('INSERT INTO Game(title,description,user_id,channel_id,status) VALUES (?,?,?,?,?);',
+            [title, desc, user_id, channel_id, status],
             function(err: Error|null){
                 if (err === null) resolve(err);
                 else reject(err);
@@ -67,14 +71,33 @@ class DatabaseCursor{
             });
         });
     }
+
+
+    getBetListByTitle(channel_id: String, text:String){
+        return new Promise((resolve, reject) => {
+            this.db.all(`SELECT game_id, title, description FROM Game WHERE channel_id = ? AND status = 0 AND title LIKE ?`, [channel_id, text+'%'],
+            (err:Error | null, rows: any) => {
+                if (err !== null) reject(err);
+                else resolve(rows);
+            });
+        })
+    }
+
+    getOpenBetList(channel_id: String){
+        return this.getBetListByTitle(channel_id, "");
+    }
 }
 
 (async () => {
     let c:DatabaseCursor = new DatabaseCursor();
     await c.initTable()
-    let x = await c.addGame("","","","",1);
-    await c.addBetQuery(1, "1", false, 1);
-    let y = await c.isFenceSitter('1',1,true);
-    console.log(y);
+    let x = await c.addGame("abc","","","",0);
+    let x2 = await c.addGame("abd","","","",0);
+    let x3 = await c.addGame("bcd","","","",0);
+    let x4 = await c.addGame("abe","","","",1);
+    //await c.addBet(1, "1", false, 1);
+    //let y = await c.isFenceSitter('1',1,true);
+    let z = await c.getOpenBetList("");
+    console.log(z);
 
 })();
