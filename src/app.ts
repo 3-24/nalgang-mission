@@ -1,9 +1,18 @@
 import { Client, Message, CollectorFilter } from "discord.js";
-import {bot_token, owner_id} from "../config.json";
+import { bot_token, owner_id } from "../config.json";
+import { DatabaseCursor } from "./database";
+import { GameUser } from "./user";
 let client = new Client();
 
 const timeoutAnswer:string = "Bye-bye, little challenger!";         // TODO: more reactions!
 const timeout = 30000;      // 30s
+const databaseErrorAnswer:string = "Error on database. Maybe our query is caught by curious fairies.."
+let cursor: DatabaseCursor;
+const titleLengthLimit: number = 200;
+const descriptionLengthLimit: number = 1000;
+const STATUS_OPEN = 0;
+const STATUS_CLOSED = 1;
+const STATUS_END = 2;
 
 async function getOneInput(message: Message){
     const filter:CollectorFilter = function (msg: Message) {
@@ -16,12 +25,20 @@ async function getOneInput(message: Message){
     return collector?.first()?.content;
 }
 
+async function findGameLexically(searchString: string, channelId: string, status: number, message: Message){
+    const rows = await cursor.getGameListByTitle(channelId, status, searchString);
+    console.log(rows);
+}
+
 client.once('ready', () => {
     if (client.user == null){
-        console.log("FATAL");
+        console.error("FATAL");
         return;
     }
     client.user.setActivity("bet.help", {type: "LISTENING"})
+    cursor = new DatabaseCursor();
+    cursor.initTable();
+    console.log("nalgang-mission is ready.");
 });
 
 client.on('message', async (message: Message) => {
@@ -29,22 +46,44 @@ client.on('message', async (message: Message) => {
     if (!message.content.startsWith(prefix) || message.author.bot) return;
     const args = message.content.slice(prefix.length).trim().split(' ');
     const command = args.shift();
+    const gameUser: GameUser = new GameUser(message.author);
+    gameUser.setChannelId(message.channel.id);
+
     if (command == "help"){
         message.channel.send("On construction")
         // TODO: Send help embed message
     }
     else if (command == "new"){
         message.reply("please enter the title:");
-        let title = await getOneInput(message);
+        const title = await getOneInput(message);
+        if (title === undefined){
+            message.reply(`No input.`);
+            return;
+        }
+        if (title.length > titleLengthLimit){
+            message.reply(`Title should not exceed the length limit ${titleLengthLimit} characters`);
+            return;
+        }
         message.reply("please enter the description:");
-        let desc = await getOneInput(message);
-        // TODO: handle timeout event
-        // TODO: insert title, desc into Game table
-        message.channel.send(`Successfully created new game with title "${title}", description "${desc}"`);
+        const desc = await getOneInput(message);
+        if (desc === undefined){
+            message.reply(`No input.`);
+            return;
+        }
+        if (desc.length > descriptionLengthLimit){
+            message.reply(`Description should not exceed the length limit ${descriptionLengthLimit} characters`);
+        }
+        try {
+            await cursor.addGame(title, desc, gameUser.id, gameUser.channelId, STATUS_OPEN)
+            message.channel.send(`Successfully created new game with title "${title}", description "${desc}"`);
+        }
+        catch (err){ message.channel.send(databaseErrorAnswer); }
+        return;
     }
     else if (command == "open"){
         // TODO: If the number of owned Games is <= 1, no interaction.
-        message.reply("enter the title:")
+        let res = findGameLexically("A", message.channel.id, STATUS_OPEN, message);
+        
         // TODO: get collector
         // TODO: update the game status in database
     }

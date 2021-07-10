@@ -1,13 +1,11 @@
-import { rejects } from "assert/strict";
 import {Database} from "sqlite3";
-import { threadId } from "worker_threads";
 
 const DEBUG = true;
 let db_path = DEBUG ? ":memory:" : "./data/database.db";
 
 
-class DatabaseCursor{
-    db
+export class DatabaseCursor{
+    private db
     constructor(){
         this.db = new Database(db_path, function (err: Error|null){
             if (err) console.error(err.message);
@@ -46,7 +44,7 @@ class DatabaseCursor{
             this.db.run('INSERT INTO Game(title,description,user_id,channel_id,status) VALUES (?,?,?,?,?);',
             [title, desc, user_id, channel_id, status],
             function(err: Error|null){
-                if (err === null) resolve(err);
+                if (err === null) resolve(null);
                 else reject(err);
             });
         })
@@ -140,11 +138,10 @@ class DatabaseCursor{
         })
     }
 }
-
+/*
 (async () => {
     let c:DatabaseCursor = new DatabaseCursor();
     await c.initTable()
-    /*
     let x = await c.addGame("abc","","","",0);
     let x2 = await c.addGame("abd","","","",0);
     let x3 = await c.addGame("bcd","","","",0);
@@ -157,7 +154,6 @@ class DatabaseCursor{
     let z = await c.getOpenGameList("");
 
     console.log(z);
-    */
    await c.addBet(1,"a",true, 1);
    await c.addBet(1,"b",false, 1);
    await c.addBet(1,"b",false, 3);
@@ -173,3 +169,4 @@ class DatabaseCursor{
    console.log(u);
 
 })();
+*/
