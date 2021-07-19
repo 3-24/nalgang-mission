@@ -3,7 +3,6 @@ import {Database} from "sqlite3";
 const DEBUG = true;
 let db_path = DEBUG ? ":memory:" : "./data/database.db";
 
-
 export class DatabaseCursor{
     private db
     constructor(){
@@ -73,18 +72,29 @@ export class DatabaseCursor{
     }
 
 
-    getGameListByTitle(channel_id: string, status: number, text:string){
+    getGameListByTitle(channel_id: string, status: number, text:string): Promise<Array<Record<string, number|string>>> {
         return new Promise((resolve, reject) => {
             this.db.all(`SELECT game_id, title, description FROM Game WHERE channel_id = ? AND status = ? AND title LIKE ?`, 
             [channel_id, status, text+'%'],
-            (err:Error | null, rows: any) => {
+            (err:Error | null, rows) => {
                 if (err !== null) reject(err);
                 else resolve(rows);
             });
         })
     }
 
-    getGameList(channel_id: string, status: number){
+    getGameById(game_id: number):Promise<Record<string, number|string>> {
+        return new Promise((resolve, reject) => {
+            this.db.get(`SELECT game_id, title, description, user_id, channel_id, status FROM Game WHERE game_id = ?`,
+            game_id, 
+            (err, row) => {
+                if (err !== null) reject(err);
+                else resolve(row);
+            });
+        });
+    }
+
+    getGameList(channel_id: string, status: number): Promise<Array<Record<string, number|string>>>{
         return this.getGameListByTitle(channel_id, status, "");
     }
 
@@ -98,7 +108,7 @@ export class DatabaseCursor{
         })
     }
 
-    getGameBetPointSum(game_id:number){
+    getGameBetPointSum(game_id:number): Promise<[number, number]> {
         return new Promise((resolve, reject) => {
             this.db.all(`SELECT success, SUM(bet_point) AS sum FROM Bet WHERE game_id = ? GROUP BY success`, game_id,
             (err:Error | null, rows)=>{
@@ -110,63 +120,33 @@ export class DatabaseCursor{
                         if (value["success"]) sum_success += value["sum"];
                         else sum_fail += value["sum"];
                     })
-                    resolve([sum_success,sum_fail]);
+                    resolve([sum_fail, sum_success]);
                 }
             });
         });
     }
 
-    getUserBet(user_id:string, game_id:number){
+    getUserBet(user_id:string, game_id:number): Promise<[number, number] | []>{
         return new Promise((resolve, reject) => {
             this.db.get(`SELECT success, SUM(bet_point) AS bet_point FROM Bet WHERE user_id = ? AND game_id = ?`,[user_id, game_id], 
-            (err:Error | null, rows: any) => {
+            (err:Error | null, row) => {
                 if (err !== null) reject(err);
-                else resolve(rows);
+                else resolve(row ? [row["success"], row["bet_point"]] : []);
             });
         })
     }
 
-    getBetWinnerList(game_id:number, success:boolean){
+    getBetWinnerList(game_id:number, success:boolean): Promise<Array<[string, number]>> {
         const int_success:number = success ? 1 : 0;
         return new Promise((resolve, reject) => {
             this.db.all(`SELECT user_id, SUM(bet_point) AS bet_point FROM Bet WHERE game_id = ? AND success = ? GROUP BY user_id`, 
             [game_id, success],
-            (err:Error | null, rows: any) => {
+            (err:Error | null, rows) => {
                 if (err !== null) reject(err);
-                else resolve(rows);
+                else {
+                    resolve(rows.map(function(x){return [ x["user_id"], x["bet_point"] ];} ));
+                }
             });
         })
     }
 }
-/*
-(async () => {
-    let c:DatabaseCursor = new DatabaseCursor();
-    await c.initTable()
-    let x = await c.addGame("abc","","","",0);
-    let x2 = await c.addGame("abd","","","",0);
-    let x3 = await c.addGame("bcd","","","",0);
-    let x4 = await c.addGame("abe","","","",1);
-    //await c.addBet(1, "1", false, 1);
-    //let y = await c.isFenceSitter('1',1,true);
-    
-    let w = await c.changeGameStatus(1, 1);
-    await c.changeGameStatus(4,0);
-    let z = await c.getOpenGameList("");
-
-    console.log(z);
-   await c.addBet(1,"a",true, 1);
-   await c.addBet(1,"b",false, 1);
-   await c.addBet(1,"b",false, 3);
-   await c.addBet(1,"c",true, 2);
-   await c.addBet(1,"d",false, 1);
-   await c.addBet(1,"e",false, 3);
-   await c.addBet(1,"b",false, 1);
-   await c.addBet(1,"e",false, 3);
-
-
-   let v = await c.getGameBetPointSum(1);
-   let u = await c.getBetWinnerList(1,false);
-   console.log(u);
-
-})();
-*/
