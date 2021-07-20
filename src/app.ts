@@ -1,5 +1,5 @@
 import { error } from "console";
-import { Client, Message, CollectorFilter, TextChannel, Guild } from "discord.js";
+import { Client, Message, CollectorFilter, TextChannel, Guild, MessageEmbed } from "discord.js";
 import { bot_token, owner_id } from "../config.json";
 import { DatabaseCursor, Game, Bet } from "./database";
 import { GameUser } from "./user";
@@ -69,7 +69,6 @@ async function findGameLexicallyWithInput(channelId: string, status: number | nu
     if (searchString === undefined){
         throw "No string input error"
     }
-    let game:Game
     return await findGameLexically(searchString, channelId, status, message);  
 }
 
@@ -87,10 +86,15 @@ async function findGameLexically(searchString: string, channelId: string, status
     }
     else {
         if (gameList.length > 1){
-            await message.reply("There are many results:");
-            for (const [index, row] of gameList.entries()){
-                await message.reply( `${index}. ${row.title}`);
+            let resultEmbed = new MessageEmbed()
+            .setTitle(`There are many results:`)
+            .setDescription(`${message.author}`);
+
+            for (const [index, game] of gameList.entries()){
+                const user = await message.guild?.members.fetch(game.user_id);
+                resultEmbed.addField(`${index}. ${game.title}`, `by ${user?.nickname}`)
             }
+            await message.channel.send(resultEmbed);
             await message.reply("Please answer the number of your intended title:")
             const numberInput: number = await getNumberInput(message);
             const row = gameList[numberInput];
