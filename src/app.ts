@@ -55,7 +55,7 @@ async function getSuccessOrFail(message: Message): Promise<boolean | undefined>{
 }
 
 async function getNumberInput(message: Message): Promise<number> {
-    const numberInputString: undefined | String = await getOneInput(message);
+    const numberInputString: undefined | string = await getOneInput(message);
     if (numberInputString === undefined) throw "No input";
     const number: number = parseInt(numberInputString, 10);
     if (number === NaN) throw "NaN";
@@ -198,7 +198,8 @@ client.on('message', async (message: Message) => {
             return;
         }
         if (bet_amount > userNalgangPoint){
-            await message.reply("Not enough points.")
+            await message.reply("Not enough points.");
+            return;
         }
 
         if (!await gameUser.addUserNalgangPoint(-bet_amount)){
@@ -275,7 +276,7 @@ client.on('message', async (message: Message) => {
         message.reply(`
         Total bets on success: ${bet_success}
         Total bets on fail: ${bet_fail}
-        ${(your_bet === []) ? "You didn't make any bet" : ("You betted on " + (your_bet[0] === 1 ? "success" : "fail") + " with " + (your_bet[1]) + "points")}
+        ${(your_bet === []) ? "You didn't make any bet" : ("You betted on " + (your_bet[0] === 1 ? "success" : "fail") + " with " + (your_bet[1] ? your_bet[1] : 0) + " points")}
         `)
     }
     else if (command == "shutdown"){
