@@ -64,20 +64,20 @@ async function getNumberInput(message: Message): Promise<number> {
     else return number;
 }
 
-async function findGameLexicallyWithInput(channelId: string, status: number | number[], message: Message): Promise<Game> {
+async function findGameLexicallyWithInput(channelId: string, status: number | number[], message: Message, user_id:string = ""): Promise<Game> {
     message.reply("Enter the title:")
     const searchString : undefined | string = await getOneInput(message);
     if (searchString === undefined){
         throw "No string input error"
     }
-    return await findGameLexically(searchString, channelId, status, message);  
+    return await findGameLexically(searchString, channelId, status, message, user_id);  
 }
 
-async function findGameLexically(searchString: string, channelId: string, status: number | Array<number>, message: Message): Promise<Game> {
+async function findGameLexically(searchString: string, channelId: string, status: number | Array<number>, message: Message, user_id:string = ""): Promise<Game> {
     let statusArray: number[];
     if (typeof status === "number"){statusArray = [status]}
     else statusArray = status;
-    let gameList: Array<Game> = await cursor.getGameListByTitle(channelId, statusArray, searchString, true, true);
+    let gameList: Array<Game> = await cursor.getGameListByTitle(channelId, statusArray, searchString, true, true, user_id);
     if (gameList.length === 0){
         await message.reply("No such title :(")
         throw "No title error";
@@ -151,7 +151,7 @@ client.on('message', async (message: Message) => {
         }
         let gameList: Array<Game>
         try{
-            gameList = await cursor.getGameListByTitle(message.channel.id, [STATUS_OPEN,STATUS_CLOSED], title, false, false);
+            gameList = await cursor.getGameListByTitle(message.channel.id, [STATUS_OPEN,STATUS_CLOSED], title, false, false,"");
         }catch(err){message.channel.send(databaseErrorAnswer); return;}
         for(const row of gameList){
             if(row.title === title && row.user_id === gameUser.user.id){
@@ -181,7 +181,7 @@ client.on('message', async (message: Message) => {
 
         const lineInput: string = message.content.slice((prefix.length + command.length)).trim();
         try {
-            const game: Game = await findGameLexically(lineInput, message.channel.id, beforeStatus, message);
+            const game: Game = await findGameLexically(lineInput, message.channel.id, beforeStatus, message, gameUser.user.id);
             await cursor.changeGameStatus(game.id, afterStatus);
             message.channel.send(`Successfully ${(command === "open") ? "opened" : "closed"} the game "${game.title}"`)
         } catch (err) {return;}
@@ -191,7 +191,7 @@ client.on('message', async (message: Message) => {
         let game: Game;
         try{
             game = await findGameLexicallyWithInput(gameUser.channel.id, STATUS_OPEN, message);
-        } catch (err) {message.channel.send(databaseErrorAnswer);return;}
+        } catch (err) {return;}
         const game_id : number = game.id;
         if (game_id === undefined) return;
         const is_success: boolean | undefined = await getSuccessOrFail(message);
@@ -229,19 +229,10 @@ client.on('message', async (message: Message) => {
     else if (command == "end"){
         let game: Game
         try {
-            game = await findGameLexicallyWithInput(gameUser.channel.id, STATUS_CLOSED, message);
+            game = await findGameLexicallyWithInput(gameUser.channel.id, STATUS_CLOSED, message, gameUser.user.id);
             await cursor.changeGameStatus(game.id, STATUS_LOCK);
         } catch(err){
             await message.reply(databaseErrorAnswer);
-            return;
-        }
-        try {
-            if (game.user_id !== gameUser.user.id){
-                message.reply("You are not the owner of the game!");
-                return;
-            }
-        } catch (err){
-            message.reply(databaseErrorAnswer);
             return;
         }
         const is_success: boolean | undefined = await getSuccessOrFail(message);
