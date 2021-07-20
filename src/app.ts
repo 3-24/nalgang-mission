@@ -1,6 +1,7 @@
+import { error } from "console";
 import { Client, Message, CollectorFilter, TextChannel, Guild } from "discord.js";
 import { bot_token, owner_id } from "../config.json";
-import { DatabaseCursor } from "./database";
+import { DatabaseCursor, Game, Bet } from "./database";
 import { GameUser } from "./user";
 let client = new Client();
 
@@ -55,51 +56,52 @@ async function getSuccessOrFail(message: Message): Promise<boolean | undefined>{
 }
 
 async function getNumberInput(message: Message): Promise<number> {
-    const numberInputString: undefined | String = await getOneInput(message);
+    const numberInputString: undefined | string = await getOneInput(message);
     if (numberInputString === undefined) throw "No input";
     const number: number = parseInt(numberInputString, 10);
     if (number === NaN) throw "NaN";
     else return number;
 }
 
-async function findGameLexicallyWithInput(channelId: string, status: number | number[], message: Message): Promise<undefined | number> {
+async function findGameLexicallyWithInput(channelId: string, status: number | number[], message: Message): Promise<Game> {
     message.reply("Enter the title:")
     const searchString : undefined | string = await getOneInput(message);
     if (searchString === undefined){
-        return undefined;
+        throw "No string input error"
     }
-    return await findGameLexically(searchString, channelId, status, message);
+    let game:Game
+    return await findGameLexically(searchString, channelId, status, message);  
 }
 
-async function findGameLexically(searchString: string, channelId: string, status: number | Array<number>, message: Message): Promise<undefined|number> {
+async function findGameLexically(searchString: string, channelId: string, status: number | Array<number>, message: Message): Promise<Game> {
     let statusArray: number[];
     if (typeof status === "number"){statusArray = [status]}
     else statusArray = status;
-    let rows: Array<Record<string, number|string>> = [];
+    let gameList: Array<Game> = [];
     for (const s of statusArray){
-        rows = rows.concat(await cursor.getGameListByTitle(channelId, s, searchString))
+        gameList = gameList.concat(await cursor.getGameListByTitle(channelId, s, searchString, true))
     }
-    if (rows.length === 0){
+    if (gameList.length === 0){
         await message.reply("No such title :(")
-        return undefined;
+        throw "No title error";
     }
     else {
-        if (rows.length > 1){
+        if (gameList.length > 1){
             await message.reply("There are many results:");
-            for (const [index, row] of rows.entries()){
-                await message.reply( `${index}. ${row["title"]}`);
+            for (const [index, row] of gameList.entries()){
+                await message.reply( `${index}. ${row.title}`);
             }
             await message.reply("Please answer the number of your intended title:")
             const numberInput: number = await getNumberInput(message);
-            const row = rows[numberInput];
-            if ("game_id" in row){
-                return row["game_id"] as number;
+            const row = gameList[numberInput];
+            if (row){
+                return row;
             } else {
                 await message.reply("Unexpected number input..");
-                return undefined;
+                throw "Impropper number error"
             }
         } else {
-            return rows[0]["game_id"] as number;
+            return gameList[0];
         }
     }
 }
@@ -145,6 +147,18 @@ client.on('message', async (message: Message) => {
             message.reply(`Title should not exceed the length limit ${titleLengthLimit} characters`);
             return;
         }
+        let openGameList: Array<Game>
+        let closedGameList: Array<Game>
+        try{
+            openGameList = await cursor.getGameListByTitle(message.channel.id, STATUS_OPEN, title, false);
+            closedGameList = await cursor.getGameListByTitle(message.channel.id, STATUS_CLOSED, title, false);
+        }catch(err){message.channel.send(databaseErrorAnswer); return;}
+        for(const row of openGameList.concat(closedGameList)){
+            if(row.title === title && row.user_id === gameUser.user.id){
+                message.reply(`You cannot add two games with same title.`);
+                return;
+            }
+        }
         message.reply("please enter the description:");
         const desc = await getOneInput(message);
         if (desc === undefined){
@@ -166,17 +180,19 @@ client.on('message', async (message: Message) => {
         const afterStatus: number = (command === "open") ? STATUS_OPEN : STATUS_CLOSED;
 
         const lineInput: string = message.content.slice((prefix.length + command.length)).trim();
-        const gameId: number | undefined = await findGameLexically(lineInput, message.channel.id, beforeStatus, message);
-        if (gameId === undefined) return;
         try {
-            await cursor.changeGameStatus(gameId, afterStatus);
-            const game: Record<string, string|number> = (await cursor.getGameById(gameId)) as Record<string, string|number>;
-            message.channel.send(`Successfully ${(command === "open") ? "opened" : "closed"} the game "${game["title"]}"`)
-        } catch (err) {message.channel.send(databaseErrorAnswer);}
+            const game: Game = await findGameLexically(lineInput, message.channel.id, beforeStatus, message);
+            await cursor.changeGameStatus(game.id, afterStatus);
+            message.channel.send(`Successfully ${(command === "open") ? "opened" : "closed"} the game "${game.title}"`)
+        } catch (err) {return;}
         return;
     }
     else if (command == "bet"){
-        const game_id : number | undefined = await findGameLexicallyWithInput(gameUser.channel.id, STATUS_OPEN, message);
+        let game: Game;
+        try{
+            game = await findGameLexicallyWithInput(gameUser.channel.id, STATUS_OPEN, message);
+        } catch (err) {message.channel.send(databaseErrorAnswer);return;}
+        const game_id : number = game.id;
         if (game_id === undefined) return;
         const is_success: boolean | undefined = await getSuccessOrFail(message);
         if (is_success === undefined) return;
@@ -198,7 +214,8 @@ client.on('message', async (message: Message) => {
             return;
         }
         if (bet_amount > userNalgangPoint){
-            await message.reply("Not enough points.")
+            await message.reply("Not enough points.");
+            return;
         }
 
         if (!await gameUser.addUserNalgangPoint(-bet_amount)){
@@ -210,17 +227,16 @@ client.on('message', async (message: Message) => {
         return;
     }
     else if (command == "end"){
-        const game_id : number | undefined = await findGameLexicallyWithInput(gameUser.channel.id, STATUS_CLOSED, message);
-        if (game_id === undefined) return;
+        let game: Game
         try {
-            await cursor.changeGameStatus(game_id, STATUS_LOCK);
+            game = await findGameLexicallyWithInput(gameUser.channel.id, STATUS_CLOSED, message);
+            await cursor.changeGameStatus(game.id, STATUS_LOCK);
         } catch(err){
             await message.reply(databaseErrorAnswer);
             return;
         }
         try {
-            const row: Record<string, number|string> = await cursor.getGameById(game_id);
-            if (row["user_id"] !== gameUser.user.id){
+            if (game.user_id !== gameUser.user.id){
                 message.reply("You are not the owner of the game!");
                 return;
             }
@@ -232,7 +248,7 @@ client.on('message', async (message: Message) => {
         if (is_success === undefined) return;
         let sums : [number, number];
         try{
-            sums = await cursor.getGameBetPointSum(game_id);
+            sums = await cursor.getGameBetPointSum(game.id);
         } catch(err){
             await message.reply(databaseErrorAnswer);
             return;
@@ -243,39 +259,40 @@ client.on('message', async (message: Message) => {
         const sum_losing = sums[Number(!is_success)];
         const sum_total = sum_winning + sum_losing;
 
-        let winningArray: Array<[string, number]>;
-        try{winningArray = await cursor.getBetWinnerList(game_id, is_success);} catch(err){await message.reply(databaseErrorAnswer); return;}
-        for (const [user_id, bet_amount] of winningArray){
+        let winningArray: Array<Bet>;
+        try{winningArray = await cursor.getBetWinnerList(game.id, is_success);} catch(err){await message.reply(databaseErrorAnswer); return;}
+        for (const row of winningArray){
             let winningUser;
-            try{ winningUser = await client.users.fetch(user_id);} catch(err){await message.channel.send(unknownErrorAnswer); return;}
+            try{ winningUser = await client.users.fetch(row.user_id);} catch(err){await message.channel.send(unknownErrorAnswer); return;}
             const winningGameUser: GameUser = new GameUser(message.channel as TextChannel, message.guild as Guild, winningUser);
-            await winningGameUser.addUserNalgangPoint(Math.floor(bet_amount * sum_total / sum_winning));
+            await winningGameUser.addUserNalgangPoint(Math.floor(row.bet_point * sum_total / sum_winning));
         }
 
         await message.reply("Ending process is done. I hope you are satisfied with the result :)");
         try {
-            await cursor.changeGameStatus(game_id, STATUS_END);
+            await cursor.changeGameStatus(game.id, STATUS_END);
         } catch(err){
             await message.reply(databaseErrorAnswer);
             return;
         }
     }
     else if (command == "status"){
-        const game_id : number | undefined = await findGameLexicallyWithInput(gameUser.channel.id, [STATUS_OPEN, STATUS_CLOSED], message);
-        if (game_id === undefined) return;
-        const game: Record<string, number|string> = await cursor.getGameById(game_id);
+        let game:Game
+        try{
+            game = await findGameLexicallyWithInput(gameUser.channel.id, [STATUS_OPEN, STATUS_CLOSED], message);
+        } catch(err){message.channel.send(databaseErrorAnswer);return;}
         await message.reply(`
         title: ${game["title"]}
         description: ${game["description"]}
         registered by ${game["user_id"]}
         status: ${game["status"] ? "Closed" : "Open"}
         `);
-        const [bet_fail, bet_success] : [number, number] = await cursor.getGameBetPointSum(game_id);
-        const your_bet : [number, number] | [] = await cursor.getUserBet(message.author.id, game_id);
+        const [bet_fail, bet_success] : [number, number] = await cursor.getGameBetPointSum(game.id);
+        const your_bet : Bet | [] = await cursor.getUserBet(message.author.id, game.id);
         message.reply(`
         Total bets on success: ${bet_success}
         Total bets on fail: ${bet_fail}
-        ${(your_bet === []) ? "You didn't make any bet" : ("You betted on " + (your_bet[0] === 1 ? "success" : "fail") + " with " + (your_bet[1]) + "points")}
+        ${(your_bet.bet_point === 0) ? "You didn't make any bet" : ("You betted on " + (your_bet.success === 1 ? "success" : "fail") + " with " + (your_bet.bet_point) + " points")}
         `)
     }
     else if (command == "shutdown"){
