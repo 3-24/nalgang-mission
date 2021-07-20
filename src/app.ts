@@ -269,20 +269,16 @@ client.on('message', async (message: Message) => {
         const [bet_fail, bet_success] : [number, number] = await cursor.getGameBetPointSum(game.id);
         const your_bet : Bet = await cursor.getUserBet(message.author.id, game.id);
         let statusEmbed = new MessageEmbed()
-        .setTitle(game.title)
-        .setDescription(`${game.description} - by ${user.displayName}`)
-        .addField("Status", (game.status ? "Closed" : "Open"))
+        .setTitle(`${game.title} [${(game.status ? "Closed" : "Open")}]`)
+        .setDescription(`${game.description}\nregistered by **${user.displayName}**`)
         .addFields(
             {name: "Total bets on success", value: bet_success, inline: true},
             {name: "Total bets on fail", value: bet_fail, inline: true}
         )
-
         if (your_bet.bet_point === 0){
-            statusEmbed.addField("Your bet", "None")
+            statusEmbed.addField("Your bet", "-")
         } else {
-            statusEmbed.addFields(
-                {name: "Your bet", value: `${your_bet.bet_point} points on ${your_bet.success ? "success" : "fail"}`}
-            );
+            statusEmbed.addField("Your bet", `${your_bet.bet_point} points on ${your_bet.success ? "success" : "fail"}`);
         }
         await message.channel.send(statusEmbed);
     }

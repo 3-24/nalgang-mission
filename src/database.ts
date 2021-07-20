@@ -154,9 +154,9 @@ export class DatabaseCursor{
     getUserBet(user_id:string, game_id:number): Promise<Bet>{
         return new Promise((resolve, reject) => {
             this.db.get(`SELECT success, SUM(bet_point) AS bet_point FROM Bet WHERE user_id = ? AND game_id = ?`,[user_id, game_id], 
-            (err:Error | null, row) => {
+            (err, row) => {
                 if (err !== null) reject(err);
-                else resolve(row ? new Bet(game_id, user_id, row["success"], row["bet_point"]) : new Bet(game_id, user_id, -1, 0));
+                else resolve((row===null) ? new Bet(game_id, user_id, row["success"], row["bet_point"]) : new Bet(game_id, user_id, -1, 0));
             });
         })
     }
