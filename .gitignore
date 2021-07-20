@@ -106,3 +106,4 @@ dist
 build/
 config.json
 data/
+sqlite3.exe
