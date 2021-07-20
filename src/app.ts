@@ -19,6 +19,12 @@ const STATUS_LOCK = 3;
 const BET_SUCCESS  = true;
 const BET_FAIL = false;
 
+const helpEmbed = new MessageEmbed()
+.setTitle("Available Commands")
+.setDescription("**bet.new** - Create new game\n" + "**bet.open** - Change game status to 'open'\n"
++ "**bet.close** - Change game status to 'close'\n" + "**bet.end** - End the game with result\n" + "**bet.status** - Show game status\n"
++ "**bet.bet** - Make a bet on a game\n" + "**bet.help** - Show this message\n");
+
 async function getOneInput(message: Message){
     const filter:CollectorFilter = function (msg: Message) {
         return msg.author.id == message.author.id && msg.guild == message.guild;
@@ -137,8 +143,8 @@ client.on('message', async (message: Message) => {
     }
 
     if (command == "help"){
-        message.channel.send("On construction")
-        // TODO: Send help embed message
+        await message.channel.send(helpEmbed);
+        return;
     }
     else if (command == "new"){
         message.reply("please enter the title:");
@@ -290,4 +296,5 @@ client.on('message', async (message: Message) => {
         }
     }
 });
+
 client.login(bot_token);
