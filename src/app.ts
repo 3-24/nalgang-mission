@@ -95,11 +95,11 @@ async function findGameLexically(searchString: string, channelId: string, status
 
             for (const [index, game] of gameList.entries()){
                 const user = await message.guild?.members.fetch(game.user_id);
-                resultEmbed.addField(`${index}. ${game.title}`, `by ${user?.nickname}`)
+                resultEmbed.addField(`${index}. ${game.title}`, `by ${user?.displayName}`)
             }
             await message.channel.send(resultEmbed);
             await message.reply("Please answer the number of your intended title:")
-            let numberInput: number; try {numberInput = await getNumberInput(message);} catch (_){return;}
+            let numberInput: number; try {numberInput = await getNumberInput(message);} catch (err){throw err;}
             const row = gameList[numberInput];
             if (row){
                 return row;
@@ -278,23 +278,27 @@ client.on('message', async (message: Message) => {
         }
     }
     else if (command == "status"){
-        let game:Game
-        try{
-            game = await findGameLexicallyWithInput(gameUser.channel.id, [STATUS_OPEN, STATUS_CLOSED], message);
-        } catch(err){message.channel.send(databaseErrorAnswer);return;}
-        await message.reply(`
-        title: ${game["title"]}
-        description: ${game["description"]}
-        registered by ${game["user_id"]}
-        status: ${game["status"] ? "Closed" : "Open"}
-        `);
+        let game:Game; try{game = await findGameLexicallyWithInput(gameUser.channel.id, [STATUS_OPEN, STATUS_CLOSED], message);} catch(err){return;}
+        const user = await message.guild?.members.fetch(game.user_id);
         const [bet_fail, bet_success] : [number, number] = await cursor.getGameBetPointSum(game.id);
-        const your_bet : Bet | [] = await cursor.getUserBet(message.author.id, game.id);
-        message.reply(`
-        Total bets on success: ${bet_success}
-        Total bets on fail: ${bet_fail}
-        ${(your_bet.bet_point === 0) ? "You didn't make any bet" : ("You betted on " + (your_bet.success === 1 ? "success" : "fail") + " with " + (your_bet.bet_point) + " points")}
-        `)
+        const your_bet : Bet = await cursor.getUserBet(message.author.id, game.id);
+        let statusEmbed = new MessageEmbed()
+        .setTitle(game.title)
+        .setDescription(`${game.description} - by ${user.displayName}`)
+        .addField("Status", (game.status ? "Closed" : "Open"))
+        .addFields(
+            {name: "Total bets on success", value: bet_success, inline: true},
+            {name: "Total bets on fail", value: bet_fail, inline: true}
+        )
+
+        if (your_bet.bet_point === 0){
+            statusEmbed.addField("Your bet", "None")
+        } else {
+            statusEmbed.addFields(
+                {name: "Your bet", value: `${your_bet.bet_point} points on ${your_bet.success ? "success" : "fail"}`}
+            );
+        }
+        await message.channel.send(statusEmbed);
     }
     else if (command == "shutdown"){
         if (message.author.id == owner_id){
