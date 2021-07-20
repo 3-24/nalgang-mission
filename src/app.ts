@@ -231,6 +231,7 @@ client.on('message', async (message: Message) => {
 
         try {await cursor.addBet(game_id, gameUser.user.id, is_success, bet_amount)}
         catch (err) {message.reply(databaseErrorAnswer)};
+        await message.reply("Successfully add a betting query");
         return;
     }
     else if (command == "end"){
