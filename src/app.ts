@@ -77,10 +77,7 @@ async function findGameLexically(searchString: string, channelId: string, status
     let statusArray: number[];
     if (typeof status === "number"){statusArray = [status]}
     else statusArray = status;
-    let gameList: Array<Game> = [];
-    for (const s of statusArray){
-        gameList = gameList.concat(await cursor.getGameListByTitle(channelId, s, searchString, true))
-    }
+    let gameList: Array<Game> = await cursor.getGameListByTitle(channelId, statusArray, searchString, true, true);
     if (gameList.length === 0){
         await message.reply("No such title :(")
         throw "No title error";
@@ -152,13 +149,11 @@ client.on('message', async (message: Message) => {
             message.reply(`Title should not exceed the length limit ${titleLengthLimit} characters`);
             return;
         }
-        let openGameList: Array<Game>
-        let closedGameList: Array<Game>
+        let gameList: Array<Game>
         try{
-            openGameList = await cursor.getGameListByTitle(message.channel.id, STATUS_OPEN, title, false);
-            closedGameList = await cursor.getGameListByTitle(message.channel.id, STATUS_CLOSED, title, false);
+            gameList = await cursor.getGameListByTitle(message.channel.id, [STATUS_OPEN,STATUS_CLOSED], title, false, false);
         }catch(err){message.channel.send(databaseErrorAnswer); return;}
-        for(const row of openGameList.concat(closedGameList)){
+        for(const row of gameList){
             if(row.title === title && row.user_id === gameUser.user.id){
                 message.reply(`You cannot add two games with same title.`);
                 return;
