@@ -3,6 +3,36 @@ import {Database} from "sqlite3";
 const DEBUG = true;
 let db_path = DEBUG ? ":memory:" : "./data/database.db";
 
+export class Game{
+    public id:number
+    public title:string
+    public description:string
+    public user_id: string
+    public channel_id: string
+    public status: number
+    constructor(id:number,title:string,description:string,user_id:string,channel_id:string,status:number){
+        this.id = id;
+        this.title = title;
+        this.description = description;
+        this.user_id = user_id;
+        this.channel_id = channel_id;
+        this.status = status;
+    }
+}
+
+export class Bet{
+    public game_id: number
+    public user_id: string
+    public success: number
+    public bet_point: number
+    constructor(game_id:number, user_id:string, success:number, bet_point:number){
+        this.game_id = game_id;
+        this.user_id = user_id;
+        this.success = success;
+        this.bet_point = bet_point;
+    }
+}
+
 export class DatabaseCursor{
     private db
     constructor(){
@@ -72,30 +102,21 @@ export class DatabaseCursor{
     }
 
 
-    getGameListByTitle(channel_id: string, status: number, text:string): Promise<Array<Record<string, number|string>>> {
+    getGameListByTitle(channel_id: string, status: number, text:string, like: boolean): Promise<Array<Game>> {
         return new Promise((resolve, reject) => {
-            this.db.all(`SELECT game_id, title, description FROM Game WHERE channel_id = ? AND status = ? AND title LIKE ?`, 
-            [channel_id, status, text+'%'],
+            this.db.all(`SELECT game_id, title, description, user_id FROM Game WHERE channel_id = ? AND status = ? AND title LIKE ?`, 
+            [channel_id, status, like? text+'%' : text],
             (err:Error | null, rows) => {
                 if (err !== null) reject(err);
-                else resolve(rows);
-            });
-        })
-    }
-
-    getGameById(game_id: number):Promise<Record<string, number|string>> {
-        return new Promise((resolve, reject) => {
-            this.db.get(`SELECT game_id, title, description, user_id, channel_id, status FROM Game WHERE game_id = ?`,
-            game_id, 
-            (err, row) => {
-                if (err !== null) reject(err);
-                else resolve(row);
+                else resolve(rows.map((x)=>{
+                    return new Game(x["game_id"],x["title"], x["description"], x["user_id"],channel_id,status)
+                }))
             });
         });
     }
-
-    getGameList(channel_id: string, status: number): Promise<Array<Record<string, number|string>>>{
-        return this.getGameListByTitle(channel_id, status, "");
+    
+    getGameList(channel_id: string, status: number): Promise<Array<Game>>{
+        return this.getGameListByTitle(channel_id, status, "", true);
     }
 
     changeGameStatus(game_id:number, status: number){
@@ -126,17 +147,17 @@ export class DatabaseCursor{
         });
     }
 
-    getUserBet(user_id:string, game_id:number): Promise<[number, number] | []>{
+    getUserBet(user_id:string, game_id:number): Promise<Bet>{
         return new Promise((resolve, reject) => {
             this.db.get(`SELECT success, SUM(bet_point) AS bet_point FROM Bet WHERE user_id = ? AND game_id = ?`,[user_id, game_id], 
             (err:Error | null, row) => {
                 if (err !== null) reject(err);
-                else resolve(row ? [row["success"], row["bet_point"]] : []);
+                else resolve(row ? new Bet(game_id, user_id, row["success"], row["bet_point"]) : new Bet(game_id, user_id, -1, 0));
             });
         })
     }
 
-    getBetWinnerList(game_id:number, success:boolean): Promise<Array<[string, number]>> {
+    getBetWinnerList(game_id:number, success:boolean): Promise<Array<Bet>> {
         const int_success:number = success ? 1 : 0;
         return new Promise((resolve, reject) => {
             this.db.all(`SELECT user_id, SUM(bet_point) AS bet_point FROM Bet WHERE game_id = ? AND success = ? GROUP BY user_id`, 
@@ -144,7 +165,7 @@ export class DatabaseCursor{
             (err:Error | null, rows) => {
                 if (err !== null) reject(err);
                 else {
-                    resolve(rows.map(function(x){return [ x["user_id"], x["bet_point"] ];} ));
+                    resolve(rows.map(function(x){return new Bet(game_id, x["user_id"], int_success, x["bet_point"]);} ));
                 }
             });
         })
