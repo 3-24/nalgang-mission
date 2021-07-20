@@ -59,8 +59,10 @@ async function getNumberInput(message: Message): Promise<number> {
     const numberInputString: undefined | string = await getOneInput(message);
     if (numberInputString === undefined) throw "No input";
     const number: number = parseInt(numberInputString, 10);
-    if (number.toString() != numberInputString) throw "Invalid Input"
-    if (number.toString() === "NaN") throw "NaN";
+    if (number.toString() != numberInputString || number === NaN){
+        await message.reply("Wrong input");
+        throw "Wrong input";
+    }
     else return number;
 }
 
@@ -97,7 +99,7 @@ async function findGameLexically(searchString: string, channelId: string, status
             }
             await message.channel.send(resultEmbed);
             await message.reply("Please answer the number of your intended title:")
-            const numberInput: number = await getNumberInput(message);
+            let numberInput: number; try {numberInput = await getNumberInput(message);} catch (_){return;}
             const row = gameList[numberInput];
             if (row){
                 return row;
@@ -207,13 +209,7 @@ client.on('message', async (message: Message) => {
         }
         const userNalgangPoint: number = await gameUser.getUserNalgangPoint()
         message.reply("bet amount:");
-        let bet_amount: number;
-        try {
-            bet_amount = await getNumberInput(message);
-        } catch (err){
-            await message.reply("Unexpected number input");
-            return;
-        }
+        let bet_amount: number; try { bet_amount = await getNumberInput(message);} catch (err){return;}
         if (bet_amount <= 0){
             await message.reply("Invalid bet amount");
             return;
