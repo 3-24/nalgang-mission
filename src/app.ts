@@ -21,9 +21,14 @@ const BET_FAIL = false;
 
 const helpEmbed = new MessageEmbed()
 .setTitle("Available Commands")
-.setDescription("**bet.new** - Create new game\n" + "**bet.open** - Change game status to 'open'\n"
-+ "**bet.close** - Change game status to 'close'\n" + "**bet.end** - End the game with result\n" + "**bet.status** - Show game status\n"
-+ "**bet.bet** - Make a bet on a game\n" + "**bet.help** - Show this message\n");
+.setDescription(
+    "**bet.new** - Create new game\n"
+    + "**bet.open** - Change game status to 'open'\n"
+    + "**bet.close** - Change game status to 'close'\n"
+    + "**bet.end** - End the game with result\n"
+    + "**bet.status** - Show game status\n"
+    + "**bet.bet** - Make a bet on a game\n"
+    + "**bet.help** - Show this message\n");
 
 async function getOneInput(message: Message){
     const filter:CollectorFilter = function (msg: Message) {
@@ -247,8 +252,6 @@ client.on('message', async (message: Message) => {
             return;
         }
         const sum_winning = sums[Number(is_success)];
-        if (sum_winning === 0){
-        }
         const sum_losing = sums[Number(!is_success)];
         const sum_total = sum_winning + sum_losing;
 
