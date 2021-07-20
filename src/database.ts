@@ -102,21 +102,25 @@ export class DatabaseCursor{
     }
 
 
-    getGameListByTitle(channel_id: string, status: number, text:string, like: boolean): Promise<Array<Game>> {
+    getGameListByTitle(channel_id: string, status: Array<number>, text:string, like: boolean, sort: boolean, user_id:string): Promise<Array<Game>> {
         return new Promise((resolve, reject) => {
-            this.db.all(`SELECT game_id, title, description, user_id FROM Game WHERE channel_id = ? AND status = ? AND title LIKE ?`, 
-            [channel_id, status, like? text+'%' : text],
+            const statusText = "("+status.map((x)=>{return "status = " + x.toString()}).join(" OR ")+")"
+            this.db.all(`
+                SELECT game_id, title, description, user_id, status 
+                FROM Game 
+                WHERE channel_id = ? AND `+statusText+` AND ${user_id ? "user_id ="+user_id+" AND": "" } title LIKE ? ${sort ? "ORDER BY title" : ""}`, 
+            [channel_id, like? text+'%' : text],
             (err:Error | null, rows) => {
                 if (err !== null) reject(err);
                 else resolve(rows.map((x)=>{
-                    return new Game(x["game_id"],x["title"], x["description"], x["user_id"],channel_id,status)
+                    return new Game(x["game_id"],x["title"], x["description"], x["user_id"],channel_id,x["status"])
                 }))
             });
         });
     }
     
-    getGameList(channel_id: string, status: number): Promise<Array<Game>>{
-        return this.getGameListByTitle(channel_id, status, "", true);
+    getGameList(channel_id: string, status: Array<number>, like:boolean, sort:boolean, user_id:string): Promise<Array<Game>>{
+        return this.getGameListByTitle(channel_id, status, "", like, sort,user_id);
     }
 
     changeGameStatus(game_id:number, status: number){
