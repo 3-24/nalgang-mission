@@ -59,7 +59,8 @@ async function getNumberInput(message: Message): Promise<number> {
     const numberInputString: undefined | string = await getOneInput(message);
     if (numberInputString === undefined) throw "No input";
     const number: number = parseInt(numberInputString, 10);
-    if (number === NaN) throw "NaN";
+    if (number.toString() != numberInputString) throw "Invalid Input"
+    if (number.toString() === "NaN") throw "NaN";
     else return number;
 }
 
