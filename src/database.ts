@@ -1,6 +1,6 @@
 import {Database} from "sqlite3";
 
-const DEBUG = true;
+const DEBUG = false;
 let db_path = DEBUG ? ":memory:" : "./data/database.db";
 
 export class Game{

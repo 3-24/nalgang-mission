@@ -192,9 +192,9 @@ client.on('message', async (message: Message) => {
         const beforeStatus: number = (command === "open") ? STATUS_CLOSED : STATUS_OPEN;
         const afterStatus: number = (command === "open") ? STATUS_OPEN : STATUS_CLOSED;
 
-        const lineInput: string = message.content.slice((prefix.length + command.length)).trim();
+        //const lineInput: string = message.content.slice((prefix.length + command.length)).trim();
         try {
-            const game: Game = await findGameLexically(lineInput, message.channel.id, beforeStatus, message, gameUser.user.id);
+            const game: Game = await findGameLexicallyWithInput(message.channel.id, beforeStatus, message, gameUser.user.id);
             await cursor.changeGameStatus(game.id, afterStatus);
             message.channel.send(`Successfully ${(command === "open") ? "opened" : "closed"} the game "${game.title}"`)
         } catch (err) {return;}
